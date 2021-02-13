@@ -1,0 +1,7 @@
+# Python
+**/*.pyc
+.pytest_cache/
+.mypy_cache
+
+# Package publishing
+dist/

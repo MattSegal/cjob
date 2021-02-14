@@ -1,0 +1,86 @@
+# === REQUIRED CONFIG ===
+
+# Which geographical region you want your EC2 instance to be created in.
+# Use the AWS CLI `aws ec2 describe-regions` to see a list of regions.
+# It's nice to pick a region that is close to you, to reduce latency.
+# Example: us-west-1
+AWS_REGION: str
+
+# What kind of EC2 instance you want to run (eg. RAM, CPU, GPU config).
+# See here for more info: https://aws.amazon.com/ec2/instance-types
+# Example: t3.small
+EC2_INSTANCE_TYPE: str
+
+# The path to your AWS EC2 private key file.
+# A key will be automatically created and downloaded to this file if it does not already exist.
+# WARNING: Do NOT commit this file to source control. Save it outside of a Git repository or .gitignore it.
+# Example: ~/.ssh/wizard.pem
+EC2_KEY_FILE_PATH: str
+
+# === OPTIONAL CONFIG ===
+
+# The name of your EC2 private key.
+# Leave this empty if it's the same as your key file (eg. wizard.pem / wizard).
+# Example: wizard
+EC2_KEY_NAME: Optional[str]
+
+# You AWS profile name, defined using `aws configure` and typically located in `~/.aws/credentials`.
+# You must provide either your access keys (below) OR this profile name.
+# Example: default
+AWS_PROFILE: Optional[str]
+
+# Your AWS access key credential.
+# See here on how to set up access keys: https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html
+# You can also set this value as an environment variable.
+# WARNING: Do NOT commit this value to source control.
+# Example: AKIAXXXXXXXXXXXXXXXQ
+AWS_ACCESS_KEY_ID: Optional[str]
+
+# Your AWS secret access key credential.
+# You can also set this value as an environment variable.
+# WARNING: Do NOT commit this value to source control.
+# Example: Ot7y/d+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXj
+AWS_SECRET_ACCESS_KEY: Optional[str]
+
+# Whether to use spot EC2 instances.
+# These are typically 1/3 the price of non-spot instances, but they can get randomly terminated by AWS.
+# Defaults to False. I recommend you set this to True if you like money.
+EC2_USE_SPOT: bool = False
+
+# The max price you are willing to pay per hour, in US dollars, for spot instances.
+# This is required if you set EC2_USE_SPOT to True.
+# You can see typical spot pricing at here: https://aws.amazon.com/ec2/pricing/on-demand/
+# I recommend setting your max price to ~2x the typical price listed on the webpage above.
+# Example: 1.2
+EC2_SPOT_MAX_PRICE: Optional[float]
+
+# The name of an AWS "instance profile" that you want attached to your EC2 instance.
+# This profile can be used to give it more permissions (like AWS S3 access). See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html#ec2-instance-profile
+# Example: worker-profile
+EC2_IAM_INSTANCE_PROFILE: Optional[str]
+
+# The Amazon ID of the base Amazon machine image (AMI) for the EC2 virtual machine.
+# This will default to the latest Ubuntu AMI if not specified.
+# Example: ami-080b87fdc6d5ca853
+EC2_AMI: Optional[str]
+
+# The Amazon ID of the firewall settings for your EC2 instance.
+# This will default to a auto-generated security group named "cjob",
+# which will be created the first time you run the script.
+# This default security group will allow inbound SSH access on port 22 and open all outbound ports.
+# Example: sg-0b2fe230ac8853538
+EC2_SECURITY_GROUP: Optional[str]
+
+# The amount of hours you want to wait until `cjob cleanup instances` kills an instance.
+# Defaults to 8 hours.
+EC2_MAX_HOURS: int = 8
+
+# The name of the S3 bucket to store stuff in when using the s3 module (see source code).
+# Example: my-bucket-name
+S3_BUCKET_NAME: Optional[str]
+
+# What you want to happen when a job finishes executing.
+# Defaults to "terminate", which completely destroys the instance.
+# You may want to set this to "stop" if you want to SSH into the server to debug something after
+# it has finished running your job.
+EC2_SHUTDOWN_BEHAVIOUR: str = "terminate"

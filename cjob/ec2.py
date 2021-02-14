@@ -5,13 +5,12 @@ from typing import Optional, List
 from time import time
 
 from pydantic import BaseModel
-from botocore.exceptions import ClientError
 
-from .settings import live_settings
-
-# TODO: Util feature to create security group
+from .config import get_settings
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_SECURITY_GROUP = "cjob-security-group"
 
 
 class EC2InstanceState:
@@ -34,16 +33,6 @@ class EC2Instance(BaseModel):
 
     def is_running(self):
         return self.state == EC2InstanceState.running
-
-    def start(self, client):
-        logger.info(f"Starting EC2 instance {self.name}")
-        response = client.start_instances(InstanceIds=[self.id])
-        logger.info(response)
-
-    def stop(self, client):
-        logger.info(f"Stopping EC2 instance {self.name}")
-        response = client.stop_instances(InstanceIds=[self.id])
-        logger.info(response)
 
 
 def run_job(client, job_id: str, job_func, *args, **kwargs):
@@ -72,46 +61,67 @@ def run_job(client, job_id: str, job_func, *args, **kwargs):
 
 
 def create_job(client, job_id: str):
-    logger.info(f"Creating EC2 instance {live_settings.EC2_INSTANCE_TYPE} for job {job_id}... ")
+    settings = get_settings()
+    logger.info(f"Creating EC2 instance {settings.EC2_INSTANCE_TYPE} for job {job_id}... ")
 
-    security_group = live_settings.EC2_SECURITY_GROUP
-    if not security_group:
-        pass  # Idempotently create a security group
+    security_group_id = settings.EC2_SECURITY_GROUP
+    if not security_group_id:
+        security_group_id = _setup_default_security_group(client)
 
-    ami_id = live_settings.EC2_AMI
+    ami_id = settings.EC2_AMI
     if not ami_id:
-        pass  # get_latest_ubuntu_ami_id
+        logger.info("No Amazon Machine Image provided, using latest Ubuntu image.")
+        ami_id = get_latest_ubuntu_ami_id(client)
+        logger.info(f"Found Ubuntu AMU {ami_id}")
+
+    # TODO: Create keyname
+    key_name = "wizard"
+    EC2_KEY_NAME
+    EC2_KEY_FILE_PATH
 
     kwargs = {
         "MaxCount": 1,
         "MinCount": 1,
         "ImageId": ami_id,
-        "InstanceType": live_settings.EC2_INSTANCE_TYPE,
-        "SecurityGroupIds": [security_group],
-        "KeyName": "autumn",
-        "InstanceInitiatedShutdownBehavior": live_settings.SHUTDOWN_BEHAVIOUR,
+        "InstanceType": settings.EC2_INSTANCE_TYPE,
+        "SecurityGroupIds": [security_group_id],
+        "KeyName": key_name,
+        "InstanceInitiatedShutdownBehavior": settings.EC2_SHUTDOWN_BEHAVIOUR,
         "TagSpecifications": [
-            {"ResourceType": "instance", "Tags": [{"Key": "Name", "Value": job_id}]}
+            {
+                "ResourceType": "instance",
+                "Tags": [{"Key": "Name", "Value": job_id}],
+            }
         ],
     }
 
-    if live_settings.EC2_IAM_INSTANCE_PROFILE:
-        kwargs["IamInstanceProfile"] = ({"Name": live_settings.EC2_IAM_INSTANCE_PROFILE},)
+    # TODO: Automatically create key if not exists
 
-    if live_settings.EC2_USE_SPOT:
+    if settings.EC2_IAM_INSTANCE_PROFILE:
+        kwargs["IamInstanceProfile"] = ({"Name": settings.EC2_IAM_INSTANCE_PROFILE},)
+
+    if settings.EC2_USE_SPOT:
         logger.info(f"Using a spot EC2 instance. ")
         kwargs["InstanceMarketOptions"] = {
             "MarketType": "spot",
             "SpotOptions": {
-                "MaxPrice": live_settings.EC2_SPOT_MAX_PRICE,
+                "MaxPrice": settings.EC2_SPOT_MAX_PRICE,
                 "SpotInstanceType": "one-time",
             },
         }
     else:
-        logger.info(f"Not using a spot EC2 instance. ")
+        logger.info(f"Not using a spot EC2 instance.")
 
     client.run_instances(**kwargs)
-    logger.info("Create request sent.")
+    logger.info("Start request sent.")
+
+
+def start_job(client, job_id: str):
+    logger.info(f"Stopping EC2 instances running job {job_id}... ")
+    instance_ids = [i.id for i in get_instances(client) if i.name == job_id]
+    logger.info(f"Starting EC2 instances {instance_ids}")
+    response = client.start_instances(InstanceIds=[instance_ids])
+    logger.info(response)
 
 
 def stop_job(client, job_id: str):
@@ -138,6 +148,10 @@ def get_instances(client) -> List[EC2Instance]:
         for tag in aws_instance.get("Tags", []):
             if tag["Key"] == "Name":
                 name = tag["Value"]
+
+        if not has_job_prefix(name):
+            # Only get cjob created instances
+            continue
 
         # Read IP address
         ip = None
@@ -171,19 +185,18 @@ def cleanup_instances(client):
     """
     Delete old EC2 instances so we don't pay for them
     """
+    settings = get_settings()
     instances = get_instances(client)
     stop_instance_ids = []
     for i in instances:
-        has_protected_name = any(
-            [i.name == i_name for i_name in live_settings.EC2_PROTECTED_INSTANCES]
-        )
+        has_protected_name = any([i.name == i_name for i_name in settings.EC2_PROTECTED_INSTANCES])
         if has_protected_name:
             # Don't kill protected instances
             continue
 
         uptime_delta = datetime.utcnow() - i.launched_at.replace(tzinfo=None)
         hours = uptime_delta.total_seconds() // 3600
-        if hours > live_settings.EC2_MAX_HOURS:
+        if hours > settings.EC2_MAX_HOURS:
             launch_time_str = i.launched_at.isoformat()
             logger.info(
                 f"Stopping instance {i.name} with id {i.id} with {hours}h uptime since {launch_time_str}"
@@ -234,3 +247,78 @@ DEFAULT_AMI_FILTERS = [
     {"Name": "root-device-type", "Values": ["ebs"]},
     {"Name": "virtualization-type", "Values": ["hvm"]},
 ]
+
+
+def add_job_prefix(s: str):
+    """Adds "cjob-" to a job id"""
+    assert not has_job_prefix(s)
+    return f"cjob-{s}"
+
+
+def has_job_prefix(s: str):
+    return s.startswith("cjob-")
+
+
+def strip_job_prefix(s: str):
+    """Removes "cjob-" from a job id"""
+    assert has_job_prefix(s)
+    return s[5:]
+
+
+def _setup_default_security_group(client) -> str:
+    """
+    Idempotently sets up default security group
+    """
+    logging.info("No security group specified, trying to find one.")
+    # Find VPC
+    logging.info("Searching for default VPC...")
+    response = client.describe_vpcs(Filters=[{"Name": "isDefault", "Values": ["true"]}])
+    vpc_id = response["Vpcs"][0]["VpcId"]
+    logging.info(f"Found default VPC {vpc_id}")
+    # Find default security group.
+    logging.info("Searching for cjob default security group...")
+    response = client.describe_security_groups()
+    security_group = None
+    for sg in response["SecurityGroups"]:
+        if sg["GroupName"] == DEFAULT_SECURITY_GROUP:
+            security_group = sg
+
+    if security_group:
+        logging.info(f"Found default security group {DEFAULT_SECURITY_GROUP}")
+    else:
+        logging.info(f"Creating default security group '{DEFAULT_SECURITY_GROUP}'")
+        security_group = client.create_security_group(
+            Description="Auto-generated security group for cjob tool.",
+            GroupName=DEFAULT_SECURITY_GROUP,
+            VpcId=vpc_id,
+        )
+
+    if not any([p["FromPort"] == 22 for p in security_group["IpPermissions"]]):
+        logger.info("Creating ingress rule for port 22 so we can SSH into the server.")
+        client.authorize_security_group_ingress(
+            GroupName=DEFAULT_SECURITY_GROUP,
+            IpPermissions=[
+                {
+                    "FromPort": 22,
+                    "ToPort": 22,
+                    "IpProtocol": "tcp",
+                    "IpRanges": [{"CidrIp": "0.0.0.0/0", "Description": "SSH Access"}],
+                },
+            ],
+        )
+
+    if not any([p["IpProtocol"] == "-1" for p in security_group["IpPermissionsEgress"]]):
+        logger.info("Creating egress rule for all ports so the server can talk to the internet.")
+        client.authorize_security_group_egress(
+            GroupName=DEFAULT_SECURITY_GROUP,
+            IpPermissions=[
+                {
+                    "FromPort": "-1",
+                    "IpProtocol": "-1",
+                    "IpRanges": [{"CidrIp": "0.0.0.0/0", "Description": "Unlimited Egress"}],
+                    "ToPort": "-1",
+                },
+            ],
+        )
+
+    return security_group["GroupId"]

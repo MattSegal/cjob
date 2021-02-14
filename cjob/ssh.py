@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 
 SSH_OPTIONS = {
     "StrictHostKeyChecking": "no",
-    # https://superuser.com/questions/522094/how-do-i-resolve-a-ssh-connection-closed-by-remote-host-due-to-inactivity
     "TCPKeepAlive": "yes",
     "ServerAliveInterval": "30",
 }

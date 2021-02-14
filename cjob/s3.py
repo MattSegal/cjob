@@ -4,7 +4,7 @@ import logging
 
 from boto3.s3.transfer import TransferConfig
 
-from .settings import live_settings
+from .config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -22,13 +22,14 @@ S3_DOWNLOAD_CONFIG = TransferConfig(
 
 def list_s3_keys(s3_client, key_prefix: str, key_suffix: str):
     """Returns the item keys in a path in AWS S3"""
-    response = s3_client.list_objects_v2(Bucket=live_settings.S3_BUCKET_NAME, Prefix=key_prefix)
+    settings = get_settings()
+    response = s3_client.list_objects_v2(Bucket=settings.S3_BUCKET_NAME, Prefix=key_prefix)
     objs = response["Contents"]
     is_truncated = response["IsTruncated"]
     while is_truncated:
         token = response["NextContinuationToken"]
         response = s3_client.list_objects_v2(
-            Bucket=live_settings.S3_BUCKET_NAME, Prefix=key_prefix, ContinuationToken=token
+            Bucket=settings.S3_BUCKET_NAME, Prefix=key_prefix, ContinuationToken=token
         )
         objs += response["Contents"]
         is_truncated = response["IsTruncated"]
@@ -61,10 +62,9 @@ def download_s3(s3_client, src_key: str, dest_path: str, quiet: bool, retries: i
 
 def _download_s3(s3_client, src_key: str, dest_path: str):
     """Downloads a file from AWS S3"""
+    settings = get_settings()
     logger.info("Downloading from %s to %s", src_key, dest_path)
-    s3_client.download_file(
-        live_settings.S3_BUCKET_NAME, src_key, dest_path, Config=S3_DOWNLOAD_CONFIG
-    )
+    s3_client.download_file(settings.S3_BUCKET_NAME, src_key, dest_path, Config=S3_DOWNLOAD_CONFIG)
 
 
 def upload_s3(s3_client, src_path: str, dest_key: str):
@@ -90,10 +90,11 @@ def upload_folder_s3(s3_client, folder_path, dest_folder_key):
 
 def upload_file_s3(s3_client, src_path: str, dest_key: str):
     """Upload a file to S3"""
+    settings = get_settings()
     logger.info("Uploading from %s to %s", src_path, dest_key)
     s3_client.upload_file(
         src_path,
-        live_settings.S3_BUCKET_NAME,
+        settings.S3_BUCKET_NAME,
         dest_key,
         ExtraArgs=S3_UPLOAD_EXTRA_ARGS,
         Config=S3_UPLOAD_CONFIG,

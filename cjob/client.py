@@ -1,19 +1,21 @@
 import boto3
 
-from .settings import CloudJobSettings
+from .config import get_settings, Settings
 
 
-def get_ec2_client(settings: CloudJobSettings):
+def get_ec2_client():
+    settings = get_settings()
     session = _get_session(settings)
     return session.client("ec2")
 
 
-def get_s3_client(settings: CloudJobSettings):
+def get_s3_client():
+    settings = get_settings()
     session = _get_session(settings)
     return session.client("s3")
 
 
-def _get_session(settings: CloudJobSettings):
+def _get_session(settings: Settings):
     if settings.AWS_PROFILE:
         return boto3.session.Session(
             region_name=settings.AWS_REGION, profile_name=settings.AWS_PROFILE

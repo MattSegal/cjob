@@ -5,3 +5,6 @@
 
 # Package publishing
 dist/
+
+# Test stuff
+cjob.yml

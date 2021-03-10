@@ -13,16 +13,12 @@ EC2_INSTANCE_TYPE: str
 
 # The path to your AWS EC2 private key file.
 # A key will be automatically created and downloaded to this file if it does not already exist.
+# This assumes that the key name is the same as the file name (without the extension).
 # WARNING: Do NOT commit this file to source control. Save it outside of a Git repository or .gitignore it.
 # Example: ~/.ssh/wizard.pem
 EC2_KEY_FILE_PATH: str
 
 # === OPTIONAL CONFIG ===
-
-# The name of your EC2 private key.
-# Leave this empty if it's the same as your key file (eg. wizard.pem / wizard).
-# Example: wizard
-EC2_KEY_NAME: Optional[str]
 
 # You AWS profile name, defined using `aws configure` and typically located in `~/.aws/credentials`.
 # You must provide either your access keys (below) OR this profile name.

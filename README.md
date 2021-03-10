@@ -2,19 +2,28 @@
 
 ![Automated Tests](https://github.com/MattSegal/cjob/workflows/Automated%20Tests/badge.svg)
 
-This tool is built for people who are doing scientific computing or machine learning and want quickly get their code running on a big server in the cloud. It only works with Amazon Web Services (AWS).
+This tool is built for people who are doing scientific computing or machine learning and want quickly get their code running on a big server using Amazon Web Services (AWS).
 
-It is a Python-based command-line tool for running jobs on temporary [AWS EC2](https://aws.amazon.com/ec2/?ec2-whats-new.sort-by=item.additionalFields.postDateTime&ec2-whats-new.sort-order=desc) instances (which are Linux computers in the cloud).
+It is a Python-based command-line tool for running jobs on temporary [AWS EC2](https://aws.amazon.com/ec2/) instances (which are Linux computers in the cloud).
 
 In general, when running a job this tool will:
 
-- Create a new EC2 instance (ie. a Linux server)
+- Create a new EC2 instance for you (ie. a Linux server)
 - Run your Python code on the instance
 - Destroy the EC2 instance
 
-That's mostly it. This tool can be combined with [Fabric](http://www.fabfile.org/) to help you run scripts on the server and [Packer](https://www.packer.io/) to help you set up the server efficiently. See the tutorials (below) for how to use these tools together.
+That's basically it. The cost of using an EC2 instance is proportional to the amount of time that it is running. This tool seeks to minimize this time by only running an instance when it's necessary.
 
-# Installation and Setup
+## Helpful Tools
+
+This tool can be combined with:
+
+- [Fabric](http://www.fabfile.org/) to help you run scripts on the server; and
+- [Packer](https://www.packer.io/) to help you set up the server more quickly
+
+See the tutorials (below) for how to use these tools (cjob, Fabric, Packer) together.
+
+## Installation and Setup
 
 Install the "cjob" package from PyPI
 
@@ -35,7 +44,7 @@ See the Configuration section below for more details.
 
 You can verify that these settings are working with `cjob settings`. You can see all command line options with `cjob --help`. See the tutorials (below) for more details on usage.
 
-# Tutorials
+## Tutorials
 
 - (todo) Running a simple job manually
 - (todo) Running a simple job automatically
@@ -43,11 +52,11 @@ You can verify that these settings are working with `cjob settings`. You can see
 - (todo) Running a PyTorch neural net on a GPU in the cloud
 - (todo) Run a job using GitHub Actions
 
-# Configuration
+## Configuration
 
 This tool is configured using a mandatory config file called "cjob.yml". [See here](cjob.example.yml) for a full description of the configuration options. **I recommend you look over this example file before using the tool**.
 
-# Infrastructure
+## Infrastructure
 
 what this will do to your infrastructure
 
@@ -55,7 +64,7 @@ what this will do to your infrastructure
 - old volumes
 - old instances
 
-# Development
+## Development
 
 [Poetry](https://python-poetry.org/) is used for packaging and dependency management.
 Some common things to do as a developer working on this codebase:

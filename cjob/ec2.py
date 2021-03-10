@@ -1,3 +1,5 @@
+import os
+import sys
 import logging
 from datetime import datetime
 from dateutil import parser
@@ -74,10 +76,7 @@ def create_job(client, job_id: str):
         ami_id = get_latest_ubuntu_ami_id(client)
         logger.info(f"Found Ubuntu AMU {ami_id}")
 
-    # TODO: Create keyname
-    key_name = "wizard"
-    EC2_KEY_NAME
-    EC2_KEY_FILE_PATH
+    key_name = _setup_private_key(client)
 
     kwargs = {
         "MaxCount": 1,
@@ -263,6 +262,41 @@ def strip_job_prefix(s: str):
     """Removes "cjob-" from a job id"""
     assert has_job_prefix(s)
     return s[5:]
+
+
+def _setup_private_key(client):
+    """
+    Create a private key at EC2_KEY_FILE_PATH if it does not already exist.
+    Does not check the key fingerprint because it's too hard,
+    just uses filenames and hope for the best.
+    """
+    settings = get_settings()
+    key_path = settings["EC2_KEY_FILE_PATH"]
+    key_name = [p for p in os.path.basename(key_path).split(".")][0]
+
+    response = client.describe_key_pairs()
+    keypairs = response["KeyPairs"]
+    key_name_already_exists = any([key_name == kp["KeyName"] for kp in keypairs])
+    key_path_already_exists = os.path.exists(key_path)
+
+    if key_name_already_exists and key_path_already_exists:
+        logger.info("Found private key %s at %s", key_name, key_path)
+    elif key_name_already_exists:
+        msg = "Found private key named %s in AWS but it does not exist locally, use a different name or move the key file to %s"
+        logger.error(msg, key_name, key_path)
+        sys.exit(-1)
+    elif key_path_already_exists:
+        msg = "Found private key named %s in locally but it does not exist in AWS, use a different name or upload the key to AWS."
+        logger.error(msg, key_name, key_path)
+        sys.exit(-1)
+    else:
+        logger.info("Creating new private key %s at %s", key_name, key_path)
+        response = client.create_key_pair(KeyName=key_name)
+        key_contents = response["KeyMaterial"]
+        with open(key_path, "w") as f:
+            f.write(key_contents)
+
+    return key_name
 
 
 def _setup_default_security_group(client) -> str:

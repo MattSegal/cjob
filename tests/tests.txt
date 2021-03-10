@@ -1,0 +1,38 @@
+Things to test
+
+cli
+    - start instance works
+        - happy path
+            - job prefix added properly
+        - job already running
+        - job already exists
+    - find instance works
+        - shows only cjob instances
+    - ensure that SSH works (SSH CLI)
+    - settings smoke test
+    - status works
+        - shows only cjob instances
+    - has job prefix works
+    - get AMI works
+    - stop instance works
+        - happy path
+        - only stops cjob named instances
+
+ec2
+    - get_instances
+    - find_instance
+    - create_job
+    - cleanup_instances
+    - cleanup_volumes
+    - get_latest_ubuntu_ami_id
+    - _setup_default_security_group
+
+- cleanup
+    - ONLY removes cjob stuff
+    - ???
+
+Done
+
+
+ec2
+    - create private key

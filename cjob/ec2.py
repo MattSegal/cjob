@@ -94,8 +94,6 @@ def create_job(client, job_id: str):
         ],
     }
 
-    # TODO: Automatically create key if not exists
-
     if settings.EC2_IAM_INSTANCE_PROFILE:
         kwargs["IamInstanceProfile"] = ({"Name": settings.EC2_IAM_INSTANCE_PROFILE},)
 
@@ -154,14 +152,16 @@ def get_instances(client) -> List[EC2Instance]:
 
         # Read IP address
         ip = None
+        instance_id = aws_instance["InstanceId"]
         try:
             network_interface = aws_instance["NetworkInterfaces"][0]
             ip = network_interface["Association"]["PublicIp"]
         except (KeyError, IndexError):
+            logger.warn("Could not find IP address for instance %s", instance_id)
             pass
 
         instance = EC2Instance(
-            id=aws_instance["InstanceId"],
+            id=instance_id,
             name=name,
             ip=ip,
             type=aws_instance["InstanceType"],
@@ -247,21 +247,23 @@ DEFAULT_AMI_FILTERS = [
     {"Name": "virtualization-type", "Values": ["hvm"]},
 ]
 
+JOB_PREFIX = "cjob-"
+
 
 def add_job_prefix(s: str):
     """Adds "cjob-" to a job id"""
     assert not has_job_prefix(s)
-    return f"cjob-{s}"
+    return JOB_PREFIX + s
 
 
 def has_job_prefix(s: str):
-    return s.startswith("cjob-")
+    return s.startswith(JOB_PREFIX)
 
 
 def strip_job_prefix(s: str):
     """Removes "cjob-" from a job id"""
     assert has_job_prefix(s)
-    return s[5:]
+    return s[len(JOB_PREFIX) :]
 
 
 def _setup_private_key(client):

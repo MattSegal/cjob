@@ -4,21 +4,21 @@
 
 This tool is built for people who are doing scientific computing or machine learning and want quickly get their code running on a big server using Amazon Web Services (AWS).
 
-It is a Python-based command-line tool for running jobs on temporary [AWS EC2](https://aws.amazon.com/ec2/) instances (which are Linux computers in the cloud).
+It is a Python-based command-line tool for running code on temporary [AWS EC2](https://aws.amazon.com/ec2/) instances (which are Linux computers in the cloud).
 
 In general, when running a job this tool will:
 
 - Create a new EC2 instance for you (ie. a Linux server)
-- Run your Python code on the instance
+- Run your code on the instance
 - Destroy the EC2 instance
 
-That's basically it. The cost of using an EC2 instance is proportional to the amount of time that it is running. This tool seeks to minimize this time by only running an instance when it's necessary.
+That's basically it. The cost of using an EC2 instance is proportional to the amount of time that it is running. This tool seeks to minimize this time by only running an instance for the shortest amount of time possible.
 
 ## Helpful Tools
 
 This tool can be combined with:
 
-- [Fabric](http://www.fabfile.org/) to help you run scripts on the server; and
+- [Fabric](http://www.fabfile.org/) to help you run code on the server; and
 - [Packer](https://www.packer.io/) to help you set up the server more quickly
 
 See the tutorials (below) for how to use these tools (cjob, Fabric, Packer) together.
@@ -44,7 +44,7 @@ See the Configuration section below for more details.
 
 You can verify that these settings are working with `cjob settings`. You can see all command line options with `cjob --help`. See the tutorials (below) for more details on usage.
 
-## Tutorials
+## Tutorials and Examples
 
 - (todo) Running a simple job manually
 - (todo) Running a simple job automatically
@@ -56,32 +56,44 @@ You can verify that these settings are working with `cjob settings`. You can see
 
 This tool is configured using a mandatory config file called "cjob.yml". [See here](cjob.example.yml) for a full description of the configuration options. **I recommend you look over this example file before using the tool**.
 
-## Infrastructure
+## Infrastructure Safety Considerations
 
-what this will do to your infrastructure
+You might be wondering: _what is this tool going to do to my AWS account?_
 
-- old AMIs
-- old volumes
-- old instances
+Good question! This tool will do the following things:
+
+- Create, start, stop, terminate, list EC2 instances
+- Delete EC2 volumes
+- Create, list private keys
+- Create a security group in your region's default VPC
+
+The scariest part of this, is of course, terminating EC2 instances and deleting volumes. This tool is intended to only stop EC2 instances and delete volumes that were created by the tool (based on the Name tag). This functionality is tested via manual tests and unit tests.
+
+**However**, this is a hobby project of mine and although I'm 90% sure that it won't delete any of your important shit, I can't guarantee it. So, if you have precious infrastructure running on your AWS account then I recommend you either avoid this tool altogether or give the source code a hard look.
+
+I am open to well communicated pull requests that increase the robustness and safety of this code.
 
 ## Development
 
 [Poetry](https://python-poetry.org/) is used for packaging and dependency management.
 Some common things to do as a developer working on this codebase:
 
-```bash
+````bash
 # Install requirements
 poetry install
+
 # Get a virtualenv for running other stuff
 poetry shell
+
 # Publish to PyPI
 poetry publish
+
 # Add a new package
 poetry add
+
 # Run tests
 pytest -vv
+
 # Format Python code
-inv format
-# Check for static typing issues / lint issues
-inv lint
-```
+black .```
+````
